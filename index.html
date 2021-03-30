@@ -116,6 +116,6 @@
   }
   
   function iframeRespond(msg){
-      alert(msg)
+      window.postMessage(msg, '*');
   }
 </script>
