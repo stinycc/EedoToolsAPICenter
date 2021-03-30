@@ -1,0 +1,121 @@
+<script src='/resources/master.js'></script>
+<script>
+  domainList = ['sTiny.link', 'littl.cc', '단축.kr']
+  function shortCodeRequest(longLink) {
+      if (longLink == '') {
+          iframeRespond("{'setShortCode':{'status':{'code':1,'text':'Not enough variables'}}}")
+      } else {
+          if (urlVaildate(longLink) !== true) {
+              //무효한 링크. 사유 반환
+              iframeRespond(urlVaildate(longLink))
+          }else if (javascriptShorten(longLink)) {
+              //자바스크립트로 줄인 코드 반환
+              iframeRespond("{'setShortCode':{'status':{'code':0,'text':'success'},'result':{longLink:'PLACE1',shortCode:'PLACE2'}}}".replace('PLACE1',protocolAppend(longLink)).replace('PLACE2',javascriptShorten(longLink)))
+          } else {
+              //서버로 링크 줄이기 요청
+              var httpUrl = 'https://apiserver.wixsite.com/stinyco/_functions/eedo/setURL?longLink=' + encodeURIComponent(protocolAppend(longLink))
+              httpRequest(httpUrl).then(function(response){
+                  if(response == 'fail'){
+                      iframeRespond({'status':3,'text':'Server is not working now. Please do alert Eedo about this.'})
+                  }else{
+                      if(response.status == 0){
+                          localStorage.setItem(protocolAppend(longLink),response.shortCode)
+                          iframeRespond("{'setShortCode':{'status':{'code':0,'text':'success'},'result':{longLink:'PLACE1',shortCode:'PLACE2'}}}".replace('PLACE1',protocolAppend(longLink)).replace('PLACE2',response.shortCode))
+                      }
+                  }
+              })
+          }
+      }
+  }
+
+  function urlVaildate(url) {
+      //URL용 프로토콜일 경우에만 유효성을 체크 이외는 그냥 유효처리
+      if(getProtocol(url) == 'http:' || getProtocol(url) == 'https:'){
+          //유효한 호스트네임인가
+          try{
+              domainHost = getHost(url)
+          }catch{
+              return "{'setShortCode':{'status':{'code':6,'text':'The provided variable is not a link'}}}"
+          }
+          if (domainHost.indexOf('.') == -1 || domainHost.indexOf('..') != -1 || domainHost.indexOf('./') != -1 || domainHost.charAt(0) == '.') {
+              return "{'setShortCode':{'status':{'code':6,'text':'The provided variable is not a link'}}}"
+          }
+
+          //퓨어 스타이니 도메인인가
+          for (i in domainList) {
+              if (domainHost.toLowerCase() == domainList[i].toLowerCase() + '/' && new URL(protocolAppend(url)).pathname == '/') {
+                  return "{'setShortCode':{'status':{'code':7,'text':'Cannot shorten any of sTiny's naked domains'}}}"
+              }
+          }
+      }
+    
+      //링크 유효함
+      return true
+  }
+  
+  function javascriptShorten(url) {
+      //서버에 보내지 않고 자바스크립트로 숏코드 만들 수 있으면 해당 값 리턴함
+      if (getHost(url).toLowerCase().indexOf('bit.ly/') == 0) {
+          //비틀리 링크인 경우
+          return url.replace(caseInsensitive('bit.ly/'), 'b:')
+      } else if (getHost(url).toLowerCase().indexOf('cutt.ly/') == 0) {
+          //커틀리 링크인 경우
+          return url.replace(caseInsensitive('cutt.ly/'), 'c:')
+      } else if (localStorage.getItem(protocolAppend(url))) {
+          //로컬스토리지에 저장돼있는 링크인 경우
+          return localStorage.getItem(protocolAppend(url))
+      } else {
+          //우리 사이트에서 단축된 링크인 경우
+          if(getProtocol(url) == 'http:' || getProtocol(url) == 'https:'){
+              for (i in domainList) {
+                  if (getHost(url).toLowerCase().indexOf(domainList[i].toLowerCase() + '/') != -1) {
+                      return (url.split(caseInsensitive(domainList[i] + '/')))[1]
+                  }
+              }
+          }
+      }
+    
+      //자바스크립트로 숏코드 만들 수 없음
+      return false
+  }
+  
+  function caseInsensitive(string) {
+      return RegExp(string, 'ig')
+  }
+
+  function protocolAppend(url) {
+      var resultUrl
+      if (url.indexOf('://') == -1) {
+          resultUrl = 'http://' + url
+      }else if (url.slice(1) == '//'){
+          resultUrl = 'http:' + url
+      }else{
+          resultUrl = url
+      }
+      return resultUrl
+  }
+  
+  function protocolRemove(url) {
+      var resultUrl
+      if (url.indexOf('://') != -1) {
+          resultUrl = (url.split('://'))[1]
+      } else if (url.slice(1) == '//') {
+          resultUrl = (url.split('//'))[1]
+      } else {
+          resultUrl = url
+      }
+      return resultUrl
+  }
+  
+  function getHost(url){
+      return new URL(protocolAppend(url)).hostname + '/'
+  }
+  
+  function getProtocol(url){
+      return  new URL(protocolAppend(url)).protocol
+  }
+  
+  function iframeRespond(msg){
+      alert(msg)
+  }
+</script>
